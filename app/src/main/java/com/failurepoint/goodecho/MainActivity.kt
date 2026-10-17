@@ -37,7 +37,7 @@ class MainActivity : ComponentActivity() {
             GoodEchoTheme(amoled = s.amoled) {
                 EchoApp(settings = s, onSave = { s2 -> lifecycleScope.launch { prefs.save(s2) } },
                     onAction = { act ->
-                        val svc = ShizukuBridge.service()
+                        val svc = ShizukuBridge.service(applicationContext)
                         when (act) {
                             "start" -> if (svc != null) svc.startCapture(if (s.mode == CacheMode.BYTES) 0 else 1,
                                 if (s.mode == CacheMode.BYTES) s.cacheMegabytes.toLong() else s.cacheMinutes.toLong())

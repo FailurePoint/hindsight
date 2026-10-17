@@ -390,16 +390,15 @@ import android.service.quicksettings.TileService
 class EchoTileService : TileService() {
     override fun onClick() {
         super.onClick()
-        val svc = ShizukuBridge.service()
-        val prefs = getSharedPreferences("echo", Context.MODE_PRIVATE)
-        val rollback = prefs.getInt("saveRollbackSeconds", 30)
+        val svc = ShizukuBridge.service(baseContext)
+        val rollback = getSharedPreferences("echo", Context.MODE_PRIVATE).getInt("saveRollbackSeconds", 30) = prefs.getInt("saveRollbackSeconds", 30)
         if (svc != null && svc.isRunning) svc.saveClip(rollback)
         update()
     }
     override fun onStartListening() { super.onStartListening(); update() }
     private fun update() {
         val t = qsTile ?: return
-        val svc = ShizukuBridge.service()
+        val svc = ShizukuBridge.service(baseContext)
         val running = svc != null && try { svc.isRunning } catch (e: Exception) { false }
         t.state = if (running) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
         t.updateTile()
@@ -569,7 +568,7 @@ class MainActivity : ComponentActivity() {
             GoodEchoTheme(amoled = s.amoled) {
                 EchoApp(settings = s, onSave = { s2 -> lifecycleScope.launch { prefs.save(s2) } },
                     onAction = { act ->
-                        val svc = ShizukuBridge.service()
+                        val svc = ShizukuBridge.service(applicationContext)
                         when (act) {
                             "start" -> if (svc != null) svc.startCapture(if (s.mode == CacheMode.BYTES) 0 else 1,
                                 if (s.mode == CacheMode.BYTES) s.cacheMegabytes.toLong() else s.cacheMinutes.toLong())
