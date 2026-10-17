@@ -718,6 +718,44 @@ for d, sz in [("mdpi",48),("hdpi",72),("xhdpi",96),("xxhdpi",144),("xxxhdpi",192
     os.makedirs(f"app/src/main/res/mipmap-{d}", exist_ok=True)
     shutil.copyfile(f"tools/icons/ic_launcher-{d}.png", f"app/src/main/res/mipmap-{d}/ic_launcher.png")
 
+# ---------------- CI: release on version tags ----------------
+w(".github/workflows/release.yml", """name: release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: android-actions/setup-android@v3
+      - run: python3 tools/generate.py
+      - run: |
+          cd app && chmod +x ../gradlew && ../gradlew assembleDebug --no-daemon --stacktrace
+      - name: Rename APK
+        run: |
+          VER=${GITHUB_REF_NAME:-snapshot}
+          cp app/app/build/outputs/apk/debug/app-debug.apk Hindsight-${VER}.apk
+          sha256sum Hindsight-${VER}.apk > Hindsight-${VER}.sha256
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            Hindsight-*.apk
+            Hindsight-*.sha256
+          generate_release_notes: true
+      - uses: actions/upload-artifact@v4
+        if: "!startsWith(github.ref, 'refs/tags/')"
+        with:
+          name: Hindsight-apk
+          path: Hindsight-*.apk
+""")
+
 # ---------------- CI: heavy lifting on GitHub ----------------
 w(".github/workflows/build.yml", """name: build
 on:
