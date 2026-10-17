@@ -88,7 +88,7 @@ w("app/src/main/AndroidManifest.xml", """<?xml version="1.0" encoding="utf-8"?>
             <intent-filter><action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/></intent-filter>
         </activity>
-        <service android:name=".ShellUserService" android:permission="android.permission.BIND_SHIZUKU_SERVICE">
+        <service android:name=".ShellUserService" android:exported="false" android:permission="android.permission.BIND_SHIZUKU_SERVICE">
             <intent-filter><action android:name="rikka.shizuku.intent.action.USER_SERVICE"/></intent-filter>
         </service>
         <service android:name=".EchoForegroundService" android:exported="false"
