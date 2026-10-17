@@ -45,4 +45,3 @@ class RingBuffer(capacityBytes: Int) {
     fun seconds(rate: Int, ch: Int = 1): Int = (filled / (rate * ch * 2)).toInt()
     fun capacityBytes(): Int = buf.size
 }
-(

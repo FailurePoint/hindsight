@@ -8,7 +8,7 @@ class EchoTileService : TileService() {
     override fun onClick() {
         super.onClick()
         val svc = ShizukuBridge.service()
-        val prefs = getSharedPreferences("echo", MODE_PRIVATE)
+        val prefs = getSharedPreferences("echo", Context.MODE_PRIVATE)
         val rollback = prefs.getInt("saveRollbackSeconds", 30)
         if (svc != null && svc.isRunning) svc.saveClip(rollback)
         update()

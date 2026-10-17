@@ -196,7 +196,7 @@ class RingBuffer(capacityBytes: Int) {
     fun seconds(rate: Int, ch: Int = 1): Int = (filled / (rate * ch * 2)).toInt()
     fun capacityBytes(): Int = buf.size
 }
-(""" % PKG).replace("%%", "%"))
+""" % PKG).replace("%%", "%"))
 
 # ---------------- shell user service ----------------
 w("app/src/main/java/%s/ShellUserService.kt" % PKD, """package %s
@@ -308,23 +308,44 @@ w("app/src/main/java/%s/ShizukuBridge.kt" % PKD, """package %s
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.ServiceConnection
+import android.os.IBinder
 import rikka.shizuku.Shizuku
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
-/** Thin wrapper over the Shizuku user-service bind dance. */
+/** Shizuku user-service bridge. bindUserService delivers the binder through
+ *  a ServiceConnection; we latch-wait briefly so synchronous callers work. */
 object ShizukuBridge {
+    private const val PKG = "com.failurepoint.goodecho"
+
+    @Volatile private var binder: IBinder? = null
+    private val latch = CountDownLatch(1)
+    private var bound = false
+
     private fun args() = Shizuku.UserServiceArgs(ComponentName(PKG, ShellUserService::class.java.name))
         .processNameSuffix("shell")
         .debuggable(false)
         .version(1)
 
+    private val conn = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName, service: IBinder) {
+            binder = service; latch.countDown()
+        }
+        override fun onServiceDisconnected(name: ComponentName) { binder = null; bound = false }
+    }
+
     fun bind(ctx: Context): Boolean = try {
-        val intent = Intent().setClassName(ctx, ShellUserService::class.java.name)
-        Shizuku.bindUserService(args(), intent)
+        if (!bound) {
+            val intent = Intent().setClassName(ctx, ShellUserService::class.java.name)
+            bound = Shizuku.bindUserService(args(), conn)
+        }
         true
     } catch (e: Exception) { false }
 
-    fun service(): IEchoService? = try {
-        IEchoService.Stub.asInterface(Shizuku.getUserServiceBinder(args()))
+    fun service(ctx: Context): IEchoService? = try {
+        if (binder == null) { bind(ctx); latch.await(750, TimeUnit.MILLISECONDS) }
+        binder?.let { IEchoService.Stub.asInterface(it) }
     } catch (e: Exception) { null }
 }
 """.replace("%s", PKG))
@@ -370,7 +391,7 @@ class EchoTileService : TileService() {
     override fun onClick() {
         super.onClick()
         val svc = ShizukuBridge.service()
-        val prefs = getSharedPreferences("echo", MODE_PRIVATE)
+        val prefs = getSharedPreferences("echo", Context.MODE_PRIVATE)
         val rollback = prefs.getInt("saveRollbackSeconds", 30)
         if (svc != null && svc.isRunning) svc.saveClip(rollback)
         update()
@@ -396,7 +417,7 @@ import android.content.Intent
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
-        val prefs = ctx.getSharedPreferences("echo", MODE_PRIVATE)
+        val prefs = ctx.getSharedPreferences("echo", Context.MODE_PRIVATE)
         if (!prefs.getBoolean("autoStart", true)) return
         ctx.startForegroundService(Intent(ctx, EchoForegroundService::class.java))
         // Shizuku may not be ready this early; EchoForegroundService / MainActivity
