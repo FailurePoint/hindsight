@@ -53,8 +53,8 @@ android {
         applicationId = "%s"
         minSdk = 28
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.1.1"
     }
     buildFeatures { compose = true; aidl = true; buildConfig = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
@@ -88,7 +88,8 @@ w("app/src/main/AndroidManifest.xml", """<?xml version="1.0" encoding="utf-8"?>
         <intent><action android:name="rikka.shizuku.manager.intent.START_SHIZUKU"/></intent>
     </queries>
     <application android:label="Hindsight" android:theme="@style/Theme.Hindsight"
-        android:icon="@mipmap/ic_launcher" android:allowBackup="false">
+        android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round"
+        android:allowBackup="false">
         <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask">
             <intent-filter><action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/></intent-filter>
@@ -562,23 +563,50 @@ class MainActivity : ComponentActivity() {
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
+    // Shizuku's binder is NOT available on the first frames after process start
+    // (the provider connects asynchronously). Calling checkSelfPermission() before
+    // the binder arrives throws "binder haven't been received" and crashes the app
+    // on cold start (observed on GrapheneOS). So: ping first, otherwise wait for the
+    // sticky binder-received listener, and retry if the binder dies and reconnects.
+    private fun requestShizukuIfReady() {
+        runOnUiThread {
+            try {
+                if (Shizuku.pingBinder() && Shizuku.checkSelfPermission() != 0) {
+                    Shizuku.requestPermission(0)
+                }
+            } catch (_: IllegalStateException) {
+                // binder dropped between ping and call; the sticky listener will fire
+            }
+        }
+    }
+
+    private val binderReceivedListener = Shizuku.OnBinderReceivedListener {
+        requestShizukuIfReady()
+    }
+    private val binderDeadListener = Shizuku.OnBinderDeadListener {
+        // binder died (Shizuku restarted); the sticky re-receive will re-request
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = Prefs(this)
         if (Build.VERSION.SDK_INT >= 33) permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        if (Shizuku.checkSelfPermission() != 0) Shizuku.requestPermission(0)
         if (Build.VERSION.SDK_INT >= 26) startForegroundService(Intent(this, HindsightService::class.java))
         else startService(Intent(this, HindsightService::class.java))
+        requestShizukuIfReady()
+        Shizuku.addBinderReceivedListenerSticky(binderReceivedListener)
+        Shizuku.addBinderDeadListener(binderDeadListener)
 
         setContent {
             val s by prefs.settings.collectAsState(initial = Settings())
             HindsightTheme(amoled = s.amoled) {
                 HindsightApp(settings = s, onSave = { s2 -> lifecycleScope.launch { prefs.save(s2) } },
                     onAction = { act ->
-                        val svc = ShizukuBridge.service(applicationContext)
+                        val svc = if (Shizuku.pingBinder()) ShizukuBridge.service(applicationContext) else null
                         when (act) {
                             "start" -> if (svc != null) svc.startCapture(if (s.mode == CacheMode.BYTES) 0 else 1,
                                 if (s.mode == CacheMode.BYTES) s.cacheMegabytes.toLong() else s.cacheMinutes.toLong())
+                                else Toast.makeText(this, "Shizuku not connected", Toast.LENGTH_SHORT).show()
                             "stop" -> svc?.stopCapture()
                             "save" -> {
                                 val ok = svc?.saveClip(s.saveRollbackSeconds) == true
@@ -588,6 +616,11 @@ class MainActivity : ComponentActivity() {
                     })
             }
         }
+    }
+    override fun onDestroy() {
+        Shizuku.removeBinderReceivedListener(binderReceivedListener)
+        Shizuku.removeBinderDeadListener(binderDeadListener)
+        super.onDestroy()
     }
 }
 """.replace("%s", PKG))
@@ -713,10 +746,30 @@ w("app/src/main/res/values/themes.xml", """<?xml version="1.0" encoding="utf-8"?
 </resources>
 """)
 
-# launcher icons: committed binary PNGs under tools/icons, copied into mipmaps
+# launcher icons: committed binary PNGs under tools/icons, copied into mipmaps.
+# Adaptive icon (API 26+): foreground glyph on transparent canvas (108dp, glyph in
+# the 66dp safe zone), background gradient PNG, monochrome = foreground.
 for d, sz in [("mdpi",48),("hdpi",72),("xhdpi",96),("xxhdpi",144),("xxxhdpi",192)]:
     os.makedirs(f"app/src/main/res/mipmap-{d}", exist_ok=True)
     shutil.copyfile(f"tools/icons/ic_launcher-{d}.png", f"app/src/main/res/mipmap-{d}/ic_launcher.png")
+    shutil.copyfile(f"tools/icons/ic_launcher_round-{d}.png", f"app/src/main/res/mipmap-{d}/ic_launcher_round.png")
+    shutil.copyfile(f"tools/icons/ic_launcher_foreground-{d}.png", f"app/src/main/res/mipmap-{d}/ic_launcher_foreground.png")
+    shutil.copyfile(f"tools/icons/ic_launcher_background-{d}.png", f"app/src/main/res/mipmap-{d}/ic_launcher_background.png")
+
+w("app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml", """<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@mipmap/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+    <monochrome android:drawable="@mipmap/ic_launcher_foreground"/>
+</adaptive-icon>
+""")
+w("app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml", """<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@mipmap/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+    <monochrome android:drawable="@mipmap/ic_launcher_foreground"/>
+</adaptive-icon>
+""")
 
 # ---------------- CI: release on version tags ----------------
 w(".github/workflows/release.yml", """name: release
