@@ -841,8 +841,10 @@ jobs:
           target: google_apis
           script: |
             set -x
-            adb install -r app/build/outputs/apk/debug/app-debug.apk
-            adb logcat -c
+            adb wait-for-device
+            until [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; do sleep 3; done
+            sleep 10
+            adb install -r --no-streaming app/build/outputs/apk/debug/app-debug.apk || adb install -r app/build/outputs/apk/debug/app-debug.apk
             adb shell pm grant com.failurepoint.hindsight android.permission.POST_NOTIFICATIONS || true
             adb shell am start -n com.failurepoint.hindsight/.MainActivity
             sleep 8
