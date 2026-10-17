@@ -53,8 +53,8 @@ android {
         applicationId = "%s"
         minSdk = 28
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.1.1"
+        versionCode = 3
+        versionName = "0.1.2"
     }
     buildFeatures { compose = true; aidl = true; buildConfig = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
@@ -80,6 +80,7 @@ w("app/src/main/AndroidManifest.xml", """<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
@@ -98,7 +99,7 @@ w("app/src/main/AndroidManifest.xml", """<?xml version="1.0" encoding="utf-8"?>
             <intent-filter><action android:name="rikka.shizuku.intent.action.USER_SERVICE"/></intent-filter>
         </service>
         <service android:name=".HindsightService" android:exported="false"
-            android:foregroundServiceType="dataSync"/>
+            android:foregroundServiceType="dataSync|microphone"/>
         <service android:name=".HindsightTileService" android:exported="true" android:label="Hindsight save clip"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE"/></intent-filter>
@@ -380,7 +381,12 @@ class HindsightService : Service() {
             .setContentTitle("Hindsight buffer active")
             .setContentText("Recording stays in RAM until you save a clip.")
             .setSmallIcon(android.R.drawable.ic_btn_speak_now).build()
-        if (Build.VERSION.SDK_INT >= 30) startForeground(1, n, 0x01000000 /* DATA_SYNC */)
+        // FOREGROUND_SERVICE_TYPE_DATA_SYNC (0x1) | MICROPHONE (0x80). Do NOT use raw
+        // hex constants here: 0x01000000 is SYSTEM_EXEMPTED, not DATA_SYNC, and passing
+        // a type not declared in the manifest is a fatal IllegalArgumentException on
+        // service start.
+        val fgsType = (0x1 or 0x80)
+        if (Build.VERSION.SDK_INT >= 30) startForeground(1, n, fgsType)
         else startForeground(1, n)
         return START_STICKY
     }

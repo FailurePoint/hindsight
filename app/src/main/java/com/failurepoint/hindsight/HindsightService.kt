@@ -20,7 +20,12 @@ class HindsightService : Service() {
             .setContentTitle("Hindsight buffer active")
             .setContentText("Recording stays in RAM until you save a clip.")
             .setSmallIcon(android.R.drawable.ic_btn_speak_now).build()
-        if (Build.VERSION.SDK_INT >= 30) startForeground(1, n, 0x01000000 /* DATA_SYNC */)
+        // FOREGROUND_SERVICE_TYPE_DATA_SYNC (0x1) | MICROPHONE (0x80). Do NOT use raw
+        // hex constants here: 0x01000000 is SYSTEM_EXEMPTED, not DATA_SYNC, and passing
+        // a type not declared in the manifest is a fatal IllegalArgumentException on
+        // service start.
+        val fgsType = (0x1 or 0x80)
+        if (Build.VERSION.SDK_INT >= 30) startForeground(1, n, fgsType)
         else startForeground(1, n)
         return START_STICKY
     }
