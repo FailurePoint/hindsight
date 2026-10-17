@@ -713,7 +713,10 @@ w("app/src/main/res/values/themes.xml", """<?xml version="1.0" encoding="utf-8"?
 </resources>
 """)
 
-# launcher icons are committed binary PNGs (mipmap-*/ic_launcher.png); not generated
+# launcher icons: committed binary PNGs under tools/icons, copied into mipmaps
+for d, sz in [("mdpi",48),("hdpi",72),("xhdpi",96),("xxhdpi",144),("xxxhdpi",192)]:
+    os.makedirs(f"app/src/main/res/mipmap-{d}", exist_ok=True)
+    shutil.copyfile(f"tools/icons/ic_launcher-{d}.png", f"app/src/main/res/mipmap-{d}/ic_launcher.png")
 
 # ---------------- CI: heavy lifting on GitHub ----------------
 w(".github/workflows/build.yml", """name: build
