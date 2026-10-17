@@ -1,5 +1,5 @@
-package com.failurepoint.goodecho;
-interface IEchoService {
+package com.failurepoint.hindsight;
+interface IHindsightService {
     boolean startCapture(int modeBytesOrTime, long cacheValue);
     void stopCapture();
     boolean saveClip(int seconds);

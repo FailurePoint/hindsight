@@ -1,4 +1,4 @@
-package com.failurepoint.goodecho
+package com.failurepoint.hindsight
 
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -9,7 +9,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-val Context.dataStore by preferencesDataStore(name = "echo_settings")
+val Context.dataStore by preferencesDataStore(name = "hindsight_settings")
 
 /** DataStore-backed settings, mirrored to SharedPreferences on write so the
  *  QS tile (no coroutine scope) can read the rollback length. */
@@ -45,7 +45,7 @@ class Prefs(private val ctx: Context) {
             e[KEY_AMOLED] = s.amoled
             e[KEY_AUTOSTART] = s.autoStart
         }
-        ctx.getSharedPreferences("echo", Context.MODE_PRIVATE).edit()
+        ctx.getSharedPreferences("hindsight", Context.MODE_PRIVATE).edit()
             .putInt("saveRollbackSeconds", s.saveRollbackSeconds)
             .putBoolean("autoStart", s.autoStart).apply()
     }

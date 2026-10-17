@@ -4,10 +4,10 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 android {
-    namespace = "com.failurepoint.goodecho"
+    namespace = "com.failurepoint.hindsight"
     compileSdk = 35
     defaultConfig {
-        applicationId = "com.failurepoint.goodecho"
+        applicationId = "com.failurepoint.hindsight"
         minSdk = 28
         targetSdk = 35
         versionCode = 1

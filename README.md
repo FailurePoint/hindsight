@@ -1,4 +1,4 @@
-# GoodEcho
+# Hindsight
 
 Rollback audio buffer that never leaves RAM unless you save a clip. Runs its
 capture in a Shizuku shell-uid service so it does not conflict with other

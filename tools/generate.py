@@ -17,6 +17,11 @@ def w(rel, content):
     p.write_text(content)
     print("+", rel)
 
+import os, shutil
+if os.path.isdir("app"):
+    shutil.rmtree("app")
+    os.makedirs("app/src/main/res/values", exist_ok=True)
+
 # ---------------- gradle ----------------
 w("settings.gradle.kts", """pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
 dependencyResolutionManagement { repositories { google(); mavenCentral() } }
@@ -83,7 +88,7 @@ w("app/src/main/AndroidManifest.xml", """<?xml version="1.0" encoding="utf-8"?>
         <intent><action android:name="rikka.shizuku.manager.intent.START_SHIZUKU"/></intent>
     </queries>
     <application android:label="Hindsight" android:theme="@style/Theme.Hindsight"
-        android:icon="@drawable/ic_launcher" android:allowBackup="false">
+        android:icon="@mipmap/ic_launcher" android:allowBackup="false">
         <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask">
             <intent-filter><action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/></intent-filter>
@@ -91,9 +96,9 @@ w("app/src/main/AndroidManifest.xml", """<?xml version="1.0" encoding="utf-8"?>
         <service android:name=".ShellUserService" android:exported="false" android:permission="android.permission.BIND_SHIZUKU_SERVICE">
             <intent-filter><action android:name="rikka.shizuku.intent.action.USER_SERVICE"/></intent-filter>
         </service>
-        <service android:name=".EchoForegroundService" android:exported="false"
+        <service android:name=".HindsightService" android:exported="false"
             android:foregroundServiceType="dataSync"/>
-        <service android:name=".EchoTileService" android:exported="true" android:label="Hindsight save clip"
+        <service android:name=".HindsightTileService" android:exported="true" android:label="Hindsight save clip"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE"/></intent-filter>
         </service>
@@ -109,8 +114,8 @@ w("app/src/main/AndroidManifest.xml", """<?xml version="1.0" encoding="utf-8"?>
 """)
 
 # ---------------- aidl ----------------
-w("app/src/main/aidl/%s/IEchoService.aidl" % PKD, """package %s;
-interface IEchoService {
+w("app/src/main/aidl/%s/IHindsightService.aidl" % PKD, """package %s;
+interface IHindsightService {
     boolean startCapture(int modeBytesOrTime, long cacheValue);
     void stopCapture();
     boolean saveClip(int seconds);
@@ -226,7 +231,7 @@ class ShellUserService : Service() {
     private val sampleRate = 44100
     private val channels = 1
 
-    private val binder = object : IEchoService.Stub() {
+    private val binder = object : IHindsightService.Stub() {
         override fun startCapture(modeBytesOrTime: Int, cacheValue: Long): Boolean = start(modeBytesOrTime, cacheValue)
         override fun stopCapture() = stop()
         override fun saveClip(seconds: Int): Boolean = writeClip(seconds)
@@ -344,15 +349,15 @@ object ShizukuBridge {
         true
     } catch (e: Exception) { false }
 
-    fun service(ctx: Context): IEchoService? = try {
+    fun service(ctx: Context): IHindsightService? = try {
         if (binder == null) { bind(ctx); latch.await(750, TimeUnit.MILLISECONDS) }
-        binder?.let { IEchoService.Stub.asInterface(it) }
+        binder?.let { IHindsightService.Stub.asInterface(it) }
     } catch (e: Exception) { null }
 }
 """.replace("%s", PKG))
 
 # ---------------- foreground service (app side, no mic type) ----------------
-w("app/src/main/java/%s/EchoForegroundService.kt" % PKD, """package %s
+w("app/src/main/java/%s/HindsightService.kt" % PKD, """package %s
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -365,7 +370,7 @@ import android.os.IBinder
 /** Keeps the app process alive to hold the Shizuku binding. Deliberately NOT
  *  a microphone-type foreground service: the mic is held by the shell-uid
  *  capture process, not this one. */
-class EchoForegroundService : Service() {
+class HindsightService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onStartCommand(i: Intent?, f: Int, id: Int): Int {
         val nm = getSystemService(NotificationManager::class.java)
@@ -382,14 +387,14 @@ class EchoForegroundService : Service() {
 """.replace("%s", PKG))
 
 # ---------------- QS tile ----------------
-w("app/src/main/java/%s/EchoTileService.kt" % PKD, """package %s
+w("app/src/main/java/%s/HindsightTileService.kt" % PKD, """package %s
 
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import android.content.Context
 
 /** Quick settings tile: tap = save a clip using the configured rollback length. */
-class EchoTileService : TileService() {
+class HindsightTileService : TileService() {
     override fun onClick() {
         super.onClick()
         val svc = ShizukuBridge.service(baseContext)
@@ -420,8 +425,8 @@ class BootReceiver : BroadcastReceiver() {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
         val prefs = ctx.getSharedPreferences("hindsight", Context.MODE_PRIVATE)
         if (!prefs.getBoolean("autoStart", true)) return
-        ctx.startForegroundService(Intent(ctx, EchoForegroundService::class.java))
-        // Shizuku may not be ready this early; EchoForegroundService / MainActivity
+        ctx.startForegroundService(Intent(ctx, HindsightService::class.java))
+        // Shizuku may not be ready this early; HindsightService / MainActivity
         // retry binding until Shizuku is up.
     }
 }
@@ -562,13 +567,13 @@ class MainActivity : ComponentActivity() {
         prefs = Prefs(this)
         if (Build.VERSION.SDK_INT >= 33) permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         if (Shizuku.checkSelfPermission() != 0) Shizuku.requestPermission(0)
-        if (Build.VERSION.SDK_INT >= 26) startForegroundService(Intent(this, EchoForegroundService::class.java))
-        else startService(Intent(this, EchoForegroundService::class.java))
+        if (Build.VERSION.SDK_INT >= 26) startForegroundService(Intent(this, HindsightService::class.java))
+        else startService(Intent(this, HindsightService::class.java))
 
         setContent {
             val s by prefs.settings.collectAsState(initial = Settings())
             HindsightTheme(amoled = s.amoled) {
-                EchoApp(settings = s, onSave = { s2 -> lifecycleScope.launch { prefs.save(s2) } },
+                HindsightApp(settings = s, onSave = { s2 -> lifecycleScope.launch { prefs.save(s2) } },
                     onAction = { act ->
                         val svc = ShizukuBridge.service(applicationContext)
                         when (act) {
@@ -588,7 +593,7 @@ class MainActivity : ComponentActivity() {
 """.replace("%s", PKG))
 
 # ---------------- app screen ----------------
-w("app/src/main/java/%s/EchoApp.kt" % PKD, """package %s
+w("app/src/main/java/%s/HindsightApp.kt" % PKD, """package %s
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -604,7 +609,7 @@ import kotlin.math.abs
 /** Single-screen MD3 UI. Cache settings are linked sliders: both are views of
  *  the same RAM budget (30%% of heap); changing one updates the other. */
 @Composable
-fun EchoApp(settings: Settings, onSave: (Settings) -> Unit, onAction: (String) -> Unit) {
+fun HindsightApp(settings: Settings, onSave: (Settings) -> Unit, onAction: (String) -> Unit) {
     val perMinBytes = 44100L * 2L * 60L
     val maxBytes = CaptureConfig.maxBytes(Runtime.getRuntime().maxMemory())
     val minBytes = CaptureConfig.MIN_MINUTES * perMinBytes
@@ -708,13 +713,7 @@ w("app/src/main/res/values/themes.xml", """<?xml version="1.0" encoding="utf-8"?
 </resources>
 """)
 
-w("app/src/main/res/drawable/ic_launcher.xml", """<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="48dp" android:height="48dp"
-    android:viewportWidth="24" android:viewportHeight="24">
-    <path android:fillColor="#FF6750A4"
-        android:pathData="M12,14c1.66,0 3,-1.34 3,-3V5c0,-1.66 -1.34,-3 -3,-3S9,3.34 9,5v6C9,12.66 10.34,14 12,14zM17,11c0,2.76 -2.24,5 -5,5s-5,-2.24 -5,-5H5c0,3.53 2.61,6.43 6,6.92V21h2v-3.08c3.39,-0.49 6,-3.39 6,-6.92H17z"/>
-</vector>
-""")
+# launcher icons are committed binary PNGs (mipmap-*/ic_launcher.png); not generated
 
 # ---------------- CI: heavy lifting on GitHub ----------------
 w(".github/workflows/build.yml", """name: build

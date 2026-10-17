@@ -1,1 +1,1 @@
--keep class com.failurepoint.goodecho.** { *; }
+-keep class com.failurepoint.hindsight.** { *; }

@@ -1,4 +1,4 @@
-package com.failurepoint.goodecho
+package com.failurepoint.hindsight
 
 import android.content.ComponentName
 import android.content.Context
@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
 /** Shizuku user-service bridge. bindUserService delivers the binder through
  *  a ServiceConnection; we latch-wait briefly so synchronous callers work. */
 object ShizukuBridge {
-    private const val PKG = "com.failurepoint.goodecho"
+    private const val PKG = "com.failurepoint.hindsight"
 
     @Volatile private var binder: IBinder? = null
     private val latch = CountDownLatch(1)
@@ -39,8 +39,8 @@ object ShizukuBridge {
         true
     } catch (e: Exception) { false }
 
-    fun service(ctx: Context): IEchoService? = try {
+    fun service(ctx: Context): IHindsightService? = try {
         if (binder == null) { bind(ctx); latch.await(750, TimeUnit.MILLISECONDS) }
-        binder?.let { IEchoService.Stub.asInterface(it) }
+        binder?.let { IHindsightService.Stub.asInterface(it) }
     } catch (e: Exception) { null }
 }

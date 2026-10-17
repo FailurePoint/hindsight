@@ -9,7 +9,7 @@
         <package android:name="moe.shizuku.privileged.api"/>
         <intent><action android:name="rikka.shizuku.manager.intent.START_SHIZUKU"/></intent>
     </queries>
-    <application android:label="GoodEcho" android:theme="@style/Theme.GoodEcho"
+    <application android:label="Hindsight" android:theme="@style/Theme.Hindsight"
         android:icon="@drawable/ic_launcher" android:allowBackup="false">
         <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask">
             <intent-filter><action android:name="android.intent.action.MAIN"/>
@@ -18,9 +18,9 @@
         <service android:name=".ShellUserService" android:exported="false" android:permission="android.permission.BIND_SHIZUKU_SERVICE">
             <intent-filter><action android:name="rikka.shizuku.intent.action.USER_SERVICE"/></intent-filter>
         </service>
-        <service android:name=".EchoForegroundService" android:exported="false"
+        <service android:name=".HindsightService" android:exported="false"
             android:foregroundServiceType="dataSync"/>
-        <service android:name=".EchoTileService" android:exported="true" android:label="GoodEcho save clip"
+        <service android:name=".HindsightTileService" android:exported="true" android:label="Hindsight save clip"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE"/></intent-filter>
         </service>

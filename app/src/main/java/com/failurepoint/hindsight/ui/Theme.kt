@@ -1,4 +1,4 @@
-package com.failurepoint.goodecho.ui
+package com.failurepoint.hindsight.ui
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -14,7 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 
 /** Material You dynamic color; AMOLED black forces a pure-black background. */
 @Composable
-fun GoodEchoTheme(amoled: Boolean, content: @Composable () -> Unit) {
+fun HindsightTheme(amoled: Boolean, content: @Composable () -> Unit) {
     val dark = isSystemInDarkTheme()
     val ctx = LocalContext.current
     val scheme: ColorScheme = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

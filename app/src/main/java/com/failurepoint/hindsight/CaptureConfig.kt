@@ -1,4 +1,4 @@
-package com.failurepoint.goodecho
+package com.failurepoint.hindsight
 
 enum class CacheMode { BYTES, TIME }
 

@@ -1,4 +1,4 @@
-package com.failurepoint.goodecho
+package com.failurepoint.hindsight
 
 import android.app.Service
 import android.content.Intent
@@ -25,7 +25,7 @@ class ShellUserService : Service() {
     private val sampleRate = 44100
     private val channels = 1
 
-    private val binder = object : IEchoService.Stub() {
+    private val binder = object : IHindsightService.Stub() {
         override fun startCapture(modeBytesOrTime: Int, cacheValue: Long): Boolean = start(modeBytesOrTime, cacheValue)
         override fun stopCapture() = stop()
         override fun saveClip(seconds: Int): Boolean = writeClip(seconds)
@@ -77,7 +77,7 @@ class ShellUserService : Service() {
         if (saving.getAndIncrement() != 0) { saving.decrementAndGet(); return false }
         try {
             val dir = File(getExternalFilesDir(null), "Recordings").apply { mkdirs() }
-            val f = File(dir, "goodecho-" + System.currentTimeMillis().toString() + ".wav")
+            val f = File(dir, "hindsight-" + System.currentTimeMillis().toString() + ".wav")
             FileOutputStream(f).use { out ->
                 val shorts = ring?.readLast(seconds.coerceAtLeast(1) * sampleRate * channels) ?: return false
                 val bytes = ByteArray(shorts.size * 2)

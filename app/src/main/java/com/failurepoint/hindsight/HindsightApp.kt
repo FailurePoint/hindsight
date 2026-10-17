@@ -1,4 +1,4 @@
-package com.failurepoint.goodecho
+package com.failurepoint.hindsight
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -14,7 +14,7 @@ import kotlin.math.abs
 /** Single-screen MD3 UI. Cache settings are linked sliders: both are views of
  *  the same RAM budget (30% of heap); changing one updates the other. */
 @Composable
-fun EchoApp(settings: Settings, onSave: (Settings) -> Unit, onAction: (String) -> Unit) {
+fun HindsightApp(settings: Settings, onSave: (Settings) -> Unit, onAction: (String) -> Unit) {
     val perMinBytes = 44100L * 2L * 60L
     val maxBytes = CaptureConfig.maxBytes(Runtime.getRuntime().maxMemory())
     val minBytes = CaptureConfig.MIN_MINUTES * perMinBytes
@@ -26,7 +26,7 @@ fun EchoApp(settings: Settings, onSave: (Settings) -> Unit, onAction: (String) -
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("GoodEcho", style = MaterialTheme.typography.headlineMedium)
+        Text("Hindsight", style = MaterialTheme.typography.headlineMedium)
 
         // status + controls
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
