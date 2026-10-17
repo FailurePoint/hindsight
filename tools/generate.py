@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Programmatic project generator for GoodEcho.
+"""Programmatic project generator for Hindsight.
 
 Edit the tables/templates below, run `python3 tools/generate.py`, commit.
 The Kotlin/UI code is data-driven so future changes are generator edits, not
@@ -8,7 +8,7 @@ hand-edits - minimizes iteration cost.
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PKG = "com.failurepoint.goodecho"
+PKG = "com.failurepoint.hindsight"
 PKD = PKG.replace(".", "/")
 
 def w(rel, content):
@@ -20,7 +20,7 @@ def w(rel, content):
 # ---------------- gradle ----------------
 w("settings.gradle.kts", """pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
 dependencyResolutionManagement { repositories { google(); mavenCentral() } }
-rootProject.name = "GoodEcho"
+rootProject.name = "Hindsight"
 include(":app")
 """)
 
@@ -82,7 +82,7 @@ w("app/src/main/AndroidManifest.xml", """<?xml version="1.0" encoding="utf-8"?>
         <package android:name="moe.shizuku.privileged.api"/>
         <intent><action android:name="rikka.shizuku.manager.intent.START_SHIZUKU"/></intent>
     </queries>
-    <application android:label="GoodEcho" android:theme="@style/Theme.GoodEcho"
+    <application android:label="Hindsight" android:theme="@style/Theme.Hindsight"
         android:icon="@drawable/ic_launcher" android:allowBackup="false">
         <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask">
             <intent-filter><action android:name="android.intent.action.MAIN"/>
@@ -93,7 +93,7 @@ w("app/src/main/AndroidManifest.xml", """<?xml version="1.0" encoding="utf-8"?>
         </service>
         <service android:name=".EchoForegroundService" android:exported="false"
             android:foregroundServiceType="dataSync"/>
-        <service android:name=".EchoTileService" android:exported="true" android:label="GoodEcho save clip"
+        <service android:name=".EchoTileService" android:exported="true" android:label="Hindsight save clip"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE"/></intent-filter>
         </service>
@@ -278,7 +278,7 @@ class ShellUserService : Service() {
         if (saving.getAndIncrement() != 0) { saving.decrementAndGet(); return false }
         try {
             val dir = File(getExternalFilesDir(null), "Recordings").apply { mkdirs() }
-            val f = File(dir, "goodecho-" + System.currentTimeMillis().toString() + ".wav")
+            val f = File(dir, "hindsight-" + System.currentTimeMillis().toString() + ".wav")
             FileOutputStream(f).use { out ->
                 val shorts = ring?.readLast(seconds.coerceAtLeast(1) * sampleRate * channels) ?: return false
                 val bytes = ByteArray(shorts.size * 2)
@@ -317,7 +317,7 @@ import java.util.concurrent.TimeUnit
 /** Shizuku user-service bridge. bindUserService delivers the binder through
  *  a ServiceConnection; we latch-wait briefly so synchronous callers work. */
 object ShizukuBridge {
-    private const val PKG = "com.failurepoint.goodecho"
+    private const val PKG = "com.failurepoint.hindsight"
 
     @Volatile private var binder: IBinder? = null
     private val latch = CountDownLatch(1)
@@ -369,9 +369,9 @@ class EchoForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onStartCommand(i: Intent?, f: Int, id: Int): Int {
         val nm = getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel("echo", "GoodEcho", NotificationManager.IMPORTANCE_LOW))
+        nm.createNotificationChannel(NotificationChannel("echo", "Hindsight", NotificationManager.IMPORTANCE_LOW))
         val n = Notification.Builder(this, "echo")
-            .setContentTitle("GoodEcho buffer active")
+            .setContentTitle("Hindsight buffer active")
             .setContentText("Recording stays in RAM until you save a clip.")
             .setSmallIcon(android.R.drawable.ic_btn_speak_now).build()
         if (Build.VERSION.SDK_INT >= 30) startForeground(1, n, 0x01000000 /* DATA_SYNC */)
@@ -393,7 +393,7 @@ class EchoTileService : TileService() {
     override fun onClick() {
         super.onClick()
         val svc = ShizukuBridge.service(baseContext)
-        val rollback = getSharedPreferences("echo", Context.MODE_PRIVATE).getInt("saveRollbackSeconds", 30)
+        val rollback = getSharedPreferences("hindsight", Context.MODE_PRIVATE).getInt("saveRollbackSeconds", 30)
         if (svc != null && svc.isRunning) svc.saveClip(rollback)
         update()
     }
@@ -418,7 +418,7 @@ import android.content.Intent
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
-        val prefs = ctx.getSharedPreferences("echo", Context.MODE_PRIVATE)
+        val prefs = ctx.getSharedPreferences("hindsight", Context.MODE_PRIVATE)
         if (!prefs.getBoolean("autoStart", true)) return
         ctx.startForegroundService(Intent(ctx, EchoForegroundService::class.java))
         // Shizuku may not be ready this early; EchoForegroundService / MainActivity
@@ -439,7 +439,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-val Context.dataStore by preferencesDataStore(name = "echo_settings")
+val Context.dataStore by preferencesDataStore(name = "hindsight_settings")
 
 /** DataStore-backed settings, mirrored to SharedPreferences on write so the
  *  QS tile (no coroutine scope) can read the rollback length. */
@@ -475,7 +475,7 @@ class Prefs(private val ctx: Context) {
             e[KEY_AMOLED] = s.amoled
             e[KEY_AUTOSTART] = s.autoStart
         }
-        ctx.getSharedPreferences("echo", Context.MODE_PRIVATE).edit()
+        ctx.getSharedPreferences("hindsight", Context.MODE_PRIVATE).edit()
             .putInt("saveRollbackSeconds", s.saveRollbackSeconds)
             .putBoolean("autoStart", s.autoStart).apply()
     }
@@ -510,7 +510,7 @@ import androidx.compose.ui.platform.LocalContext
 
 /** Material You dynamic color; AMOLED black forces a pure-black background. */
 @Composable
-fun GoodEchoTheme(amoled: Boolean, content: @Composable () -> Unit) {
+fun HindsightTheme(amoled: Boolean, content: @Composable () -> Unit) {
     val dark = isSystemInDarkTheme()
     val ctx = LocalContext.current
     val scheme: ColorScheme = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -547,7 +547,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
-import com.failurepoint.goodecho.ui.GoodEchoTheme
+import com.failurepoint.hindsight.ui.HindsightTheme
 import kotlinx.coroutines.launch
 import rikka.shizuku.Shizuku
 
@@ -567,7 +567,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val s by prefs.settings.collectAsState(initial = Settings())
-            GoodEchoTheme(amoled = s.amoled) {
+            HindsightTheme(amoled = s.amoled) {
                 EchoApp(settings = s, onSave = { s2 -> lifecycleScope.launch { prefs.save(s2) } },
                     onAction = { act ->
                         val svc = ShizukuBridge.service(applicationContext)
@@ -616,7 +616,7 @@ fun EchoApp(settings: Settings, onSave: (Settings) -> Unit, onAction: (String) -
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("GoodEcho", style = MaterialTheme.typography.headlineMedium)
+        Text("Hindsight", style = MaterialTheme.typography.headlineMedium)
 
         // status + controls
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -704,7 +704,7 @@ fun EchoApp(settings: Settings, onSave: (Settings) -> Unit, onAction: (String) -
 # ---------------- resources ----------------
 w("app/src/main/res/values/themes.xml", """<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.GoodEcho" parent="android:Theme.Material.Light.NoActionBar"/>
+    <style name="Theme.Hindsight" parent="android:Theme.Material.Light.NoActionBar"/>
 </resources>
 """)
 
@@ -736,12 +736,12 @@ jobs:
         run: gradle :app:assembleDebug --no-daemon --stacktrace
       - uses: actions/upload-artifact@v4
         with:
-          name: GoodEcho-debug-apk
+          name: Hindsight-debug-apk
           path: app/build/outputs/apk/debug/*.apk
 """)
 
 # ---------------- README ----------------
-w("README.md", """# GoodEcho
+w("README.md", """# Hindsight
 
 Rollback audio buffer that never leaves RAM unless you save a clip. Runs its
 capture in a Shizuku shell-uid service so it does not conflict with other
