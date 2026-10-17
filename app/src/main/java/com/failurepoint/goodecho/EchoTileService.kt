@@ -2,6 +2,7 @@ package com.failurepoint.goodecho
 
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
+import android.content.Context
 
 /** Quick settings tile: tap = save a clip using the configured rollback length. */
 class EchoTileService : TileService() {

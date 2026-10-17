@@ -338,7 +338,8 @@ object ShizukuBridge {
     fun bind(ctx: Context): Boolean = try {
         if (!bound) {
             val intent = Intent().setClassName(ctx, ShellUserService::class.java.name)
-            bound = Shizuku.bindUserService(args(), conn)
+            Shizuku.bindUserService(args(), conn)
+            bound = true
         }
         true
     } catch (e: Exception) { false }
@@ -385,6 +386,7 @@ w("app/src/main/java/%s/EchoTileService.kt" % PKD, """package %s
 
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
+import android.content.Context
 
 /** Quick settings tile: tap = save a clip using the configured rollback length. */
 class EchoTileService : TileService() {
