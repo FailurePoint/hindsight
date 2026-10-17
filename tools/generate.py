@@ -816,6 +816,58 @@ jobs:
           path: Hindsight-*.apk
 """)
 
+# ---------------- CI: emulator smoke test on API 34 ----------------
+w(".github/workflows/emulator-run.yml", """name: emulator-run
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  emulator-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/generate.py
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+      - run: gradle :app:assembleDebug --no-daemon
+      - name: Boot emulator and exercise app
+        timeout-minutes: 30
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          script: |
+            set -x
+            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            adb logcat -c
+            adb shell pm grant com.failurepoint.hindsight android.permission.POST_NOTIFICATIONS || true
+            adb shell am start -n com.failurepoint.hindsight/.MainActivity
+            sleep 8
+            adb shell dumpsys activity services com.failurepoint.hindsight > services.txt || true
+            adb shell am start-foreground-service -n com.failurepoint.hindsight/.HindsightService || true
+            sleep 10
+            adb shell dumpsys activity services com.failurepoint.hindsight > services2.txt || true
+            adb logcat -d > logcat.txt
+            if grep -E 'FATAL EXCEPTION|SecurityException|Force stopping' logcat.txt >/dev/null; then :; fi
+            if grep -E 'FATAL EXCEPTION|SecurityException' logcat.txt; then
+              echo '::error::crash detected - see logcat.txt artifact'
+              exit 1
+            else
+              echo NO CRASH DETECTED
+            fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: emulator-evidence
+          path: |
+            logcat.txt
+            services.txt
+            services2.txt
+""")
+
 # ---------------- CI: heavy lifting on GitHub ----------------
 w(".github/workflows/build.yml", """name: build
 on:
