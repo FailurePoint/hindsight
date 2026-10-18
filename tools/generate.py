@@ -853,13 +853,7 @@ jobs:
             sleep 10
             adb shell dumpsys activity services com.failurepoint.hindsight > services2.txt || true
             adb logcat -d > logcat.txt
-            if grep -E 'FATAL EXCEPTION|SecurityException|Force stopping' logcat.txt >/dev/null; then :; fi
-            if grep -E 'FATAL EXCEPTION|SecurityException' logcat.txt; then
-              echo '::error::crash detected - see logcat.txt artifact'
-              exit 1
-            else
-              echo NO CRASH DETECTED
-            fi
+            grep -E 'FATAL EXCEPTION|SecurityException' logcat.txt && { echo '::error::crash detected - see logcat.txt artifact'; exit 1; } || echo NO CRASH DETECTED
       - uses: actions/upload-artifact@v4
         if: always()
         with:
